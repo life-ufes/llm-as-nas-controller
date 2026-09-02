@@ -1,20 +1,20 @@
 # LLM as NAS Controller
 
-Busca de Arquiteturas Neurais (NAS — *Neural Architecture Search*) para classificação multimodal de lesões de pele, usando **LLMs locais servidos via [Ollama](https://ollama.com/)** como controlador da busca. A cada passo, o LLM recebe o espaço de busca e o histórico de resultados, propõe uma nova configuração de arquitetura em JSON, o modelo é treinado e a *Balanced Accuracy* (BACC) obtida é devolvida ao LLM como recompensa para guiar as próximas propostas.
+Neural Architecture Search (NAS) for multimodal skin lesion classification, using **local LLMs served via [Ollama](https://ollama.com/)** as the search controller. At each step, the LLM receives the search space and the history of results, proposes a new architecture configuration in JSON, the model is trained, and the resulting *Balanced Accuracy* (BACC) is returned to the LLM as a reward to guide the next proposals.
 
-Projeto desenvolvido no mestrado (PPGI/UFES).
+Project developed during the master's program (PPGI/UFES).
 
-## Como funciona
+## How it works
 
-1. Um prompt é montado com o **espaço de busca** e o **histórico** de configurações já avaliadas (modos `full`, `last_k` ou `top_k`).
-2. O prompt é enviado ao Ollama (`POST /api/generate`, com `format: json` para modelos compatíveis como `qwen*` e `gpt-oss*`) — ver [request_to_llm.py](src/scripts/benchmark/utils/request_to_llm.py).
-3. A resposta é filtrada (remoção de `<think>`, extração do primeiro JSON válido) e validada com **Pydantic** ([pydantic_llm_response_formats.py](src/scripts/benchmark/models/pydantic_llm_response_formats.py)). Configurações inválidas ou repetidas são descartadas.
-4. A configuração válida instancia uma CNN multimodal dinâmica ([dynamicMultimodalmodel.py](src/scripts/benchmark/models/dynamicMultimodalmodel.py)), que é treinada com *early stopping* e avaliada em validação.
-5. A BACC vira a recompensa registrada no histórico, e o ciclo se repete por `SEARCH_STEPS` passos. Tudo é logado no **MLflow** e em CSV/JSON na pasta de resultados.
+1. A prompt is built with the **search space** and the **history** of already-evaluated configurations (`full`, `last_k`, or `top_k` modes).
+2. The prompt is sent to Ollama (`POST /api/generate`, with `format: json` for compatible models such as `qwen*` and `gpt-oss*`) — see [request_to_llm.py](src/scripts/benchmark/utils/request_to_llm.py).
+3. The response is filtered (removal of `<think>`, extraction of the first valid JSON) and validated with **Pydantic** ([pydantic_llm_response_formats.py](src/scripts/benchmark/models/pydantic_llm_response_formats.py)). Invalid or repeated configurations are discarded.
+4. The valid configuration instantiates a dynamic multimodal CNN ([dynamicMultimodalmodel.py](src/scripts/benchmark/models/dynamicMultimodalmodel.py)), which is trained with *early stopping* and evaluated on the validation set.
+5. The BACC becomes the reward recorded in the history, and the cycle repeats for `SEARCH_STEPS` steps. Everything is logged to **MLflow** and to CSV/JSON in the results folder.
 
-## Espaço de busca
+## Search space
 
-| Hiperparâmetro | Valores |
+| Hyperparameter | Values |
 | --- | --- |
 | `num_blocks` | 2, 5, 10 |
 | `initial_filters` | 16, 32, 64 |
@@ -28,33 +28,33 @@ Projeto desenvolvido no mestrado (PPGI/UFES).
 | `num_layers_fc_module` | 1, 2 |
 | `neurons_per_layer_size_of_fc_module` | 256, 512 |
 
-## Estrutura do projeto
+## Project structure
 
 ```text
 conf/
-  .env                  # variáveis de ambiente (criar a partir do .env.test)
+  .env                  # environment variables (create from .env.test)
 src/scripts/
   benchmark/
-    nas/                # scripts de busca e treino final
-      optimization_train_process_pad_20_llm-as-controller.py   # NAS com LLM como controlador
-      optimization_train_process_pad_20_using_random-search.py # baseline: busca aleatória
-      optimization_train_process_pad_20.py                     # busca exaustiva/grid
-      train_pad_20_optimized_model.py                          # treino final (PAD-UFES-20)
-      train_isic_2019_optimized_model.py                       # treino final (ISIC-2019)
-      train_milk10k_optimized_model.py                         # treino final (MILK-10k)
-      calculate_flops.py                                       # FLOPs/parâmetros dos modelos
-      run_script_via_bash.sh                                   # lança a busca em background
-    models/             # datasets, CNN dinâmica, mecanismos de atenção (MetaBlock, MetaNet, cross-attention), focal loss, schemas Pydantic
-    utils/              # cliente Ollama, filtragem de resposta do LLM, métricas, early stopping, logs de experimentos
-    interpretability/   # Grad-CAM, Grad-CAM++, Score-CAM, flip rate, análise de incerteza
-    plots/              # gráficos de resultados, matrizes de confusão, GIFs
-  data_preprocessing/   # pré-processamento (ISIC-2019, PAD-UFES-20), data augmentation, LIME
-  aggreation/           # agregação de métricas e testes estatísticos (Wilcoxon)
+    nas/                # search and final training scripts
+      optimization_train_process_pad_20_llm-as-controller.py   # NAS with LLM as controller
+      optimization_train_process_pad_20_using_random-search.py # baseline: random search
+      optimization_train_process_pad_20.py                     # exhaustive/grid search
+      train_pad_20_optimized_model.py                          # final training (PAD-UFES-20)
+      train_isic_2019_optimized_model.py                       # final training (ISIC-2019)
+      train_milk10k_optimized_model.py                         # final training (MILK-10k)
+      calculate_flops.py                                       # FLOPs/parameters of the models
+      run_script_via_bash.sh                                   # launches the search in the background
+    models/             # datasets, dynamic CNN, attention mechanisms (MetaBlock, MetaNet, cross-attention), focal loss, Pydantic schemas
+    utils/              # Ollama client, LLM response filtering, metrics, early stopping, experiment logs
+    interpretability/   # Grad-CAM, Grad-CAM++, Score-CAM, flip rate, uncertainty analysis
+    plots/              # result charts, confusion matrices, GIFs
+  data_preprocessing/   # preprocessing (ISIC-2019, PAD-UFES-20), data augmentation, LIME
+  aggreation/           # metric aggregation and statistical tests (Wilcoxon)
 ```
 
-## Requisitos e instalação
+## Requirements and installation
 
-Crie o ambiente virtual e instale as dependências:
+Create the virtual environment and install the dependencies:
 
 ```bash
 python3 -m venv .venv
@@ -62,15 +62,15 @@ source .venv/bin/activate
 pip install torch torchvision pydantic mlflow scikit-learn pandas numpy requests python-dotenv tqdm Pillow
 ```
 
-> Recomenda-se GPU com CUDA para o treino dos modelos.
+> A GPU with CUDA is recommended for model training.
 
-Além disso, é necessário o **Ollama** rodando localmente em `http://localhost:11434`, com o modelo controlador baixado:
+In addition, **Ollama** must be running locally at `http://localhost:11434`, with the controller model downloaded:
 
 ```bash
-ollama pull qwen3:0.6b   # ou outro modelo (qwen*, gpt-oss* suportam format=json e thinking)
+ollama pull qwen3:0.6b   # or another model (qwen*, gpt-oss* support format=json and thinking)
 ```
 
-- Dataset (ex.: [PAD-UFES-20](https://data.mendeley.com/datasets/zr7vgbcyr2/1)) com a estrutura:
+- Dataset (e.g., [PAD-UFES-20](https://data.mendeley.com/datasets/zr7vgbcyr2/1)) with the following structure:
 
 ```text
 <DATASET_FOLDER_PATH>/
@@ -78,9 +78,9 @@ ollama pull qwen3:0.6b   # ou outro modelo (qwen*, gpt-oss* suportam format=json
   images/
 ```
 
-## Configuração
+## Configuration
 
-Crie `conf/.env` (use [conf/.env.test](conf/.env.test) como modelo):
+Create `conf/.env` (use [conf/.env.test](conf/.env.test) as a template):
 
 ```env
 NUM_EPOCHS=100
@@ -89,61 +89,93 @@ K_FOLDS=5
 LIST_NUM_HEADS=[8]
 COMMON_DIM=512
 DATASET_FOLDER_NAME="PAD-UFES-20"
-DATASET_FOLDER_PATH="/caminho/para/PAD-UFES-20"
+DATASET_FOLDER_PATH="/path/to/PAD-UFES-20"
 RESULTS_FOLDER_PATH="./src/results"
 UNFREEZE_WEIGHTS=False
-LLM_MODEL_NAME_SEQUENCE_GENERATOR="qwen3:0.6b"   # modelo do Ollama usado como controlador
+LLM_MODEL_NAME_SEQUENCE_GENERATOR="qwen3:0.6b"   # Ollama model used as controller
 HISTORY_MODE="full"                              # full | last_k | top_k
-SEARCH_STEPS=500                                 # número de passos da busca
+SEARCH_STEPS=500                                 # number of search steps
 ```
+#### Environment variables explained
 
-## Execução
+- `NUM_EPOCHS`: Number of training epochs per fold/model. Higher values usually improve convergence, but increase runtime.
+- `BATCH_SIZE`: Number of samples per gradient update. Larger batches use more GPU memory.
+- `K_FOLDS`: Number of folds used in cross-validation.
+- `LIST_NUM_HEADS`: Number of attention heads in multimodal fusion modules.
+- `COMMON_DIM`: Size of the shared latent projection space used to align modalities.
+- `DATASET_FOLDER_NAME`: Dataset folder identifier (used in naming/organization).
+- `DATASET_FOLDER_PATH`: Full path to the dataset root directory used by training scripts.
+- `save_to_disk`: If `True`, saves trained model weights and artifacts.
+- `RESULTS_FOLDER_PATH`: Output path where metrics, logs, and saved artifacts are written.
 
-Com o ambiente virtual ativado, rode a busca NAS com o LLM como controlador via script `.sh` (o processo é lançado em background, com log em `logs/`):
+## Running
+
+With the virtual environment activated, run the NAS search with the LLM as controller via the `.sh` script (the process is launched in the background, with logging to `logs/`):
 
 ```bash
 bash ./src/scripts/benchmark/nas/run_script_via_bash.sh
 ```
 
-Ou rode o script Python diretamente:
+Or run the Python script directly:
 
 ```bash
 python3 ./src/scripts/benchmark/nas/optimization_train_process_pad_20_llm-as-controller.py
 ```
 
-Baseline com busca aleatória, para comparação:
+Random search baseline, for comparison:
 
 ```bash
 python3 ./src/scripts/benchmark/nas/optimization_train_process_pad_20_using_random-search.py
 ```
 
-Treino final da melhor arquitetura encontrada:
+Final training of the best architecture found:
 
 ```bash
 python3 ./src/scripts/benchmark/nas/train_pad_20_optimized_model.py
 ```
 
-## Resultados
+## Results
 
-Os resultados são gravados em `RESULTS_FOLDER_PATH/<HISTORY_MODE>/<thinking>/controller-<llm>/<dataset>/...`, incluindo histórico da busca (JSON/CSV), melhor configuração encontrada e métricas por passo. Os experimentos também são rastreados no MLflow (`mlflow ui` para visualizar), com parâmetros como `search_space`, `history_mode` e `final_best_reward`.
+Results are written to `RESULTS_FOLDER_PATH/<HISTORY_MODE>/<thinking>/controller-<llm>/<dataset>/...`, including the search history (JSON/CSV), the best configuration found, and per-step metrics. Experiments are also tracked in MLflow (`mlflow ui` to visualize), with parameters such as `search_space`, `history_mode`, and `final_best_reward`.
 
-# Citação
+## Supplementary material
 
-Este trabalho faz parte de um artigo de nome "LLM-Driven Neural Architecture Search for Multimodal Skin Lesion Classification under Deployment Constraints" atualmente submetido a uma conferência.
+This Supplementary material section reports the configurations of the top-10 architectures identified by the NAS process, ranked in descending order according to the A-TOPSIS multi-criteria decision-making score. These results provide additional transparency regarding the architectural trade-offs explored during search and support the selection of the final model (ID~21).
 
-Caso use o código em questão, faça a devida citação do trabalho/artigo.
+| Rank | ID | History | CNN Blocks | Init. Filters | Kernel | Layers/Block | Fusion | Fusion Dim | Classifier MLP |
+|------|----|---------|------------|---------------|--------|--------------|--------|------------:|---------------:|
+| 1    | 21 | TOP-10-BACC | 10 | 64 | 3 | 2 | MetaBlock | 512 | 2 × 512 |
+| 2    | 23 | TOP-10-BACC | 5  | 64 | 3 | 1 | MetaBlock | 256 | 1 × 512 |
+| 3    | 11 | LAST-10     | 5  | 32 | 3 | 2 | MetaBlock | 512 | 1 × 512 |
+| 4    | 7  | FULL        | 5  | 64 | 3 | 2 | MetaBlock | 256 | 1 × 512 |
+| 5    | 5  | FULL        | 10 | 64 | 5 | 1 | MetaBlock | 512 | 2 × 512 |
+| 6    | 2  | FULL        | 2  | 32 | 5 | 2 | MetaBlock | 512 | 2 × 512 |
+| 7    | 3  | FULL        | 5  | 64 | 3 | 2 | MetaBlock | 512 | 2 × 256 |
+| 8    | 19 | TOP-10-BACC | 5  | 32 | 3 | 1 | MetaBlock | 128 | 1 × 512 |
+| 9    | 15 | LAST-10     | 5  | 64 | 3 | 2 | Cross-Attention | 512 | 1 × 256 |
+| 10   | 18 | TOP-10-BACC | 2  | 16 | 5 | 2 | MetaBlock | 128 | 2 × 512 |
 
+Across the top-10 ranked architectures, MetaBlock emerges as the dominant fusion mechanism, appearing in nearly all high-performing solutions (Appendix~A). In addition, the fusion dimension of 512 is the most frequent configuration among these models, indicating a consistent preference for higher-dimensional shared representations within the explored search space.
+
+# Citation
+
+This work is part of a paper titled "LLM-Driven Neural Architecture Search for Multimodal Skin Lesion Classification under Deployment Constraints," currently submitted to a conference.
+
+If you use this code, please cite the corresponding work/paper.
+
+```bibtex
 @inproceedings{rocha2026llmnas,
   author    = {Rocha, Wyctor Fogos da and 
                Bouzon, Pedro H. G. and
-               Pacheco, Andr{\'e} G. C. and
-               Souza~J{\'u}nior, Luis Ant{\^o}nio de},
+               Pacheco, Andr{'e} G. C. and
+               Souza~J{'u}nior, Luis Ant{^o}nio de},
   title     = {{LLM-Driven Neural Architecture Search for Multimodal
                Skin Lesion Classification under Deployment Constraints}},
   booktitle = {2026 39th SIBGRAPI Conference on Graphics, Patterns and
                Images (SIBGRAPI)},
   year      = {2026},
   publisher = {IEEE},
-  address   = {Salvador, Brazil},
+  address   = {Goiânia-Goiás, Brazil},
   note      = {In press},
 }
+```
