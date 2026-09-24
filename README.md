@@ -157,6 +157,22 @@ This Supplementary material section reports the configurations of the top-10 arc
 
 Across the top-10 ranked architectures, MetaBlock emerges as the dominant fusion mechanism, appearing in nearly all high-performing solutions (Appendix~A). In addition, the fusion dimension of 512 is the most frequent configuration among these models, indicating a consistent preference for higher-dimensional shared representations within the explored search space.
 
+Complete configuration of the best model:
+
+{
+  "num_blocks": 10,
+  "initial_filters": 64,
+  "kernel_size": 3,
+  "layers_per_block": 2,
+  "use_pooling": true,
+  "common_dim": 512,
+  "attention_mecanism": "metablock",
+  "num_layers_text_fc": 3,
+  "neurons_per_layer_size_of_text_fc": 128,
+  "num_layers_fc_module": 2,
+  "neurons_per_layer_size_of_fc_module": 512
+}
+
 # Citation
 
 This work is part of a paper titled "LLM-Driven Neural Architecture Search for Multimodal Skin Lesion Classification under Deployment Constraints," currently submitted to a conference.
